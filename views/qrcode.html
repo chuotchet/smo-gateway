@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="/js/qrcode.min.js"></script>
+</head>
+<body>
+  <center>
+    <div id="qrcode"></div>
+  </center>
+<script type="text/javascript">
+var data = <%- JSON.stringify(token) %>;
+data = JSON.stringify(data);
+var qrcode = new QRCode(document.getElementById("qrcode"), {
+    text: data,
+    width: 200,
+    height: 200,
+    colorDark : "#000000",
+    colorLight : "#ffffff",
+    correctLevel : QRCode.CorrectLevel.H
+});
+</script>
+</body>
+</html>
