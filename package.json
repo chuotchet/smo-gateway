@@ -13,6 +13,8 @@
     "express": "~4.13.4",
     "express-ejs-layouts": "^2.2.0",
     "express-session": "^1.14.1",
+    "generate-password": "^1.2.0",
+    "getmac": "^1.2.1",
     "jade": "~1.11.0",
     "jsonfile": "^2.4.0",
     "morgan": "~1.7.0",

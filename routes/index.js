@@ -2,13 +2,25 @@ var express = require('express');
 var jsonfile = require('jsonfile');
 var passport = require('passport');
 var LocalStrategy = require('passport-local').Strategy;
+var generator = require('generate-password');
 var userfile = './config/user.json';
+var tokenfile = './config/token.json';
 var router = express.Router();
 var checkPassword = function(password, callback){
   jsonfile.readFile(userfile, function(err, user){
     callback(user.password==password);
   });
 }
+
+//get gateway MAC address
+// require('getmac').getMac(function(err,macAddress){
+//     if (err)  throw err;
+//     jsonfile.readFile(tokenfile, function(err,info){
+//       info.MAC = macAddress;
+//       jsonfile.writeFile(tokenfile, info, function(err){
+//       });
+//     });
+// });
 
 function ensureAuthenticated(req, res, next){
 	if(req.isAuthenticated()){
@@ -76,10 +88,28 @@ router.post('/changepass', ensureAuthenticated, function(req,res){
 });
 
 router.get('/qrcode', ensureAuthenticated, function(req,res){
-  res.locals.token = {
-    MAC: "asdasdasdada",
-    token: "ahihihihdfdddddddddddddddddddddddddddddddddd"
-  }
-  res.render('qrcode');
+  jsonfile.readFile(tokenfile, function(err, info){
+    if(info.token==null){
+      info.token = generator.generate({number: true});
+      jsonfile.writeFile(tokenfile, info, function(err){
+        res.locals.token = info;
+        res.render('qrcode');
+      });
+    }
+    else {
+      res.locals.token = info;
+      res.render('qrcode');
+    }
+  });
+});
+
+router.get('/changeqr', ensureAuthenticated, function(req,res){
+  jsonfile.readFile(tokenfile, function(err, info){
+    info.token = generator.generate({number: true});
+    jsonfile.writeFile(tokenfile, info, function(err){
+      res.locals.token = info;
+      res.render('qrcode');
+    });
+  });
 });
 module.exports = router;
