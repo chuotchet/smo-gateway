@@ -13,14 +13,14 @@ var checkPassword = function(password, callback){
 }
 
 //get gateway MAC address
-// require('getmac').getMac(function(err,macAddress){
-//     if (err)  throw err;
-//     jsonfile.readFile(tokenfile, function(err,info){
-//       info.MAC = macAddress;
-//       jsonfile.writeFile(tokenfile, info, function(err){
-//       });
-//     });
-// });
+require('getmac').getMac(function(err,macAddress){
+    if (err)  throw err;
+    jsonfile.readFile(tokenfile, function(err,info){
+      info.G_MAC = macAddress;
+      jsonfile.writeFile(tokenfile, info, function(err){
+      });
+    });
+});
 
 function ensureAuthenticated(req, res, next){
 	if(req.isAuthenticated()){
@@ -89,8 +89,8 @@ router.post('/changepass', ensureAuthenticated, function(req,res){
 
 router.get('/qrcode', ensureAuthenticated, function(req,res){
   jsonfile.readFile(tokenfile, function(err, info){
-    if(info.token==null){
-      info.token = generator.generate({number: true});
+    if(info.key==null){
+      info.key = generator.generate({number: true});
       jsonfile.writeFile(tokenfile, info, function(err){
         res.locals.token = info;
         res.render('qrcode');
@@ -105,7 +105,7 @@ router.get('/qrcode', ensureAuthenticated, function(req,res){
 
 router.get('/changeqr', ensureAuthenticated, function(req,res){
   jsonfile.readFile(tokenfile, function(err, info){
-    info.token = generator.generate({number: true});
+    info.key = generator.generate({number: true});
     jsonfile.writeFile(tokenfile, info, function(err){
       res.locals.token = info;
       res.render('qrcode');
