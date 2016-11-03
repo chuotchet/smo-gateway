@@ -6,8 +6,11 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var session = require('express-session');
 var expressLayouts = require('express-ejs-layouts');
+var models = require("./models");
 var passport = require('passport');
 var LocalStrategy = require('passport-local').Strategy;
+
+var mqttcontroller = require('./routes/mqtt-controller.js');
 
 var routes = require('./routes/index');
 var users = require('./routes/users');
@@ -32,6 +35,7 @@ app.use(session({
     saveUninitialized: true,
     resave: true
 }));
+models.sequelize.sync();
 app.use(passport.initialize());
 app.use(passport.session());
 app.use('/', routes);

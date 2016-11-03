@@ -1,8 +1,10 @@
+var http = require('http');
 var express = require('express');
 var jsonfile = require('jsonfile');
 var passport = require('passport');
 var LocalStrategy = require('passport-local').Strategy;
 var generator = require('generate-password');
+var requestify = require('requestify');
 var userfile = './config/user.json';
 var tokenfile = './config/token.json';
 var router = express.Router();
@@ -11,7 +13,6 @@ var checkPassword = function(password, callback){
     callback(user.password==password);
   });
 }
-
 //get gateway MAC address
 require('getmac').getMac(function(err,macAddress){
     if (err)  throw err;
@@ -107,6 +108,13 @@ router.get('/changeqr', ensureAuthenticated, function(req,res){
   jsonfile.readFile(tokenfile, function(err, info){
     info.key = generator.generate({number: true});
     jsonfile.writeFile(tokenfile, info, function(err){
+      requestify.post('https://cc-smo.herokuapp.com/gateway', info).then(function(response){
+        console.log(response.getBody());
+      });
+      // info = {
+      //   N_MAC: 'hoho',
+      //   key: 'hehe'
+      // }
       res.locals.token = info;
       res.render('qrcode');
     });

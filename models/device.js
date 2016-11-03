@@ -1,0 +1,53 @@
+"use strict";
+
+module.exports = function(sequelize, DataTypes) {
+  var Device = sequelize.define('Device', {
+    name: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    type: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    mode: {
+      type: DataTypes.STRING,
+      defaultValue: 'manual',
+      allowNull: true
+    },
+    status: {
+      type: DataTypes.STRING,
+      defaultValue: 'off',
+      allowNull: true
+    },
+    button: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    port: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    status_port: {
+      type: DataTypes.STRING,
+      defaultValue: 'on',
+      allowNull: true
+    }
+  }, {
+    classMethods: {
+      getDeviceByPort: function(port, callback){
+        var query = {
+          where: {
+            port: port
+          }
+        };
+        Device.findOne(query).then(callback);
+      }
+      // associate: function(models){
+      //   User.belongsToMany(models.Course, {through: models.Feedback});
+      // }
+    },
+    tableName: 'device'
+  });
+  return Device;
+};

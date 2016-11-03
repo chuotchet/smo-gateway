@@ -1,0 +1,30 @@
+{
+    "development": {
+        "dialect": "mysql",
+        "username": "root",
+        "password": "",
+        "database": "smo",
+        "host": "127.0.0.1",
+        "pool": {
+            "max": 5,
+            "min": 0,
+            "idle": 10000
+        },
+        "logging": false
+    },
+    "test": {
+        "username": "root",
+        "password": null,
+        "database": "database_test",
+        "storage": "./sqlite/dbtest.sqlite",
+        "dialect": "sqlite",
+        "logging": false
+    },
+    "production": {
+        "username": "root",
+        "password": null,
+        "database": "database_production",
+        "host": "127.0.0.1",
+        "dialect": "mysql"
+    }
+}
