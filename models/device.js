@@ -32,6 +32,21 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.STRING,
       defaultValue: 'on',
       allowNull: true
+    },
+    temp: {
+      type: DataTypes.STRING,
+      defaultValue: '25',
+      allowNull: true
+    },
+    time: {
+      type: DataTypes.STRING,
+      defaultValue: '00-00/12-00',
+      allowNull: true
+    },
+    range: {
+      type: DataTypes.STRING,
+      defaultValue: '18/30',
+      allowNull: true
     }
   }, {
     classMethods: {

@@ -1,3 +1,4 @@
+ồi
 var SerialPort = require('serialport').SerialPort;
 var xbee_api = require('xbee-api');
 
@@ -13,7 +14,7 @@ var frameSend = {
     data: "" // Can either be string or byte array.
 }
 
-var mqtt = require('mqtt-controller.js')
+//var mqtt = require('mqtt-controller.js')
 var xbeeAPI = new xbee_api.XBeeAPI({
   api_mode: 1
 });

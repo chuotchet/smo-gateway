@@ -31,16 +31,22 @@ client.on('message', function(topic, message){
     deleteDevice(topic, message);
   }
   if (message.request=='controlDevice'){
-
+    controlDevice(topic, message);
   }
   if (message.request=='changeMode'){
-
+    changeMode(topic, message);
   }
   if (message.request=='turnOffAll'){
 
   }
   if (message.request=='controlPort'){
-
+    controlPort(topic, message);
+  }
+  if (message.request=='controlAir'){
+    controlAir(topic, message);
+  }
+  if (message.request=='controlAuto'){
+    controlAuto(topic, message);
   }
 });
 
@@ -93,7 +99,6 @@ var editDevice = function(topic, message){
       dev[0].type = message.data.type;
       dev[0].name = message.data.name;
       dev[0].button = message.data.button;
-      dev[0].port = message.data.port;
       dev[0].save().then(function(){
         returnData(topic);
       });
@@ -127,7 +132,18 @@ var controlDevice = function(topic, message){
   //TODO: xbee
 
   //TODO: database
-
+  models.Node.getNodeByMAC(MAC, function(node){
+    node.getDevices({
+      where:{
+        port: message.data.port
+      }
+    }).then(function(dev){
+      dev[0].status = message.data.status;
+      dev[0].save().then(function(){
+        returnData(topic);
+      });
+    });
+  });
 }
 
 var changeMode = function(topic, message){
@@ -135,7 +151,18 @@ var changeMode = function(topic, message){
   //TODO: xbee
 
   //TODO: database
-
+  models.Node.getNodeByMAC(MAC, function(node){
+    node.getDevices({
+      where:{
+        port: message.data.port
+      }
+    }).then(function(dev){
+      dev[0].mode = message.data.mode;
+      dev[0].save().then(function(){
+        returnData(topic);
+      });
+    });
+  });
 }
 
 var turnOffAll = function(topic, message){
@@ -144,6 +171,64 @@ var turnOffAll = function(topic, message){
 
   //TODO: database
 
+}
+
+var controlPort = function(topic, message){
+  var MAC = topic.split('/')[1];
+  //TODO: xbee
+
+  //TODO: database
+  models.Node.getNodeByMAC(MAC, function(node){
+    node.getDevices({
+      where:{
+        port: message.data.port
+      }
+    }).then(function(dev){
+      dev[0].status_port = message.data.status_port;
+      dev[0].save().then(function(){
+        returnData(topic);
+      });
+    });
+  });
+}
+
+var controlAir = function(topic, message){
+  var MAC = topic.split('/')[1];
+  //TODO: xbee
+
+  //TODO: database
+  models.Node.getNodeByMAC(MAC, function(node){
+    node.getDevices({
+      where:{
+        port: message.data.port
+      }
+    }).then(function(dev){
+      dev[0].temp = message.data.temp;
+      dev[0].save().then(function(){
+        returnData(topic);
+      });
+    });
+  });
+}
+
+var controlAuto = function(topic, message){
+  var MAC = topic.split('/')[1];
+  //TODO: xbee
+
+  //TODO: database
+  models.Node.getNodeByMAC(MAC, function(node){
+    node.getDevices({
+      where:{
+        port: message.data.port
+      }
+    }).then(function(dev){
+      dev[0].time = message.data.time;
+      dev[0].range = message.data.range;
+      dev[0].save().then(function(){
+        returnData(topic);
+      });
+    });
+  });
 }
 
 
