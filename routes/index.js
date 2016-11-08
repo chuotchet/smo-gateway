@@ -7,6 +7,7 @@ var generator = require('generate-password');
 var requestify = require('requestify');
 var userfile = './config/user.json';
 var tokenfile = './config/token.json';
+var brokerfile = './config/brokerurl.json';
 var router = express.Router();
 var checkPassword = function(password, callback){
   jsonfile.readFile(userfile, function(err, user){
@@ -120,4 +121,26 @@ router.get('/changeqr', ensureAuthenticated, function(req,res){
     });
   });
 });
+
+router.get('/changebroker', ensureAuthenticated, function(req,res){
+  jsonfile.readFile(brokerfile, function(err, broker){
+    res.locals.url = broker.URL;
+    res.render('changebroker');
+  });
+});
+
+router.post('/changebroker', ensureAuthenticated, function(req,res){
+  jsonfile.readFile(brokerfile, function(err, broker){
+    broker.URL = req.body.newurl;
+    jsonfile.writeFile(brokerfile, broker, function(err){
+      //res.send('Change broker URL successfully!');
+      res.redirect('/restart');
+    });
+  });
+});
+
+router.get('/restart', ensureAuthenticated, function(req,res){
+  process.exit(0);
+});
+
 module.exports = router;

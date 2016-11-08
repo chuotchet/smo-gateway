@@ -1,16 +1,26 @@
 var mqtt = require('mqtt');
 var models = require('../models');
 var strToByte = require('./strToByte.js');
-var client  = mqtt.connect('mqtt://test.mosquitto.org');
+var broker = require('../config/brokerurl.json');
+var client  = mqtt.connect(broker.URL);
+
 //var xbee = require('./xbee-controller.js')
 client.on('connect', function(){
   console.log('connected to mqtt broker!');
   client.subscribe('qwerty/#');
 });
 
+client.on('reconnect', function(){
+  console.log('restart connection');
+});
+
 client.on('message', function(topic, message){
+  console.log(message);
   message = JSON.parse(message);
   var node = topic.split('/')[1];
+  if (message.request=='getData'){
+    returnData(topic);
+  }
   if (message.request=='addDevice'){
     addDevice(topic, message);
   }
