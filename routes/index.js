@@ -94,11 +94,16 @@ router.get('/qrcode', ensureAuthenticated, function(req,res){
     if(info.key==null){
       info.key = generator.generate({number: true});
       jsonfile.writeFile(tokenfile, info, function(err){
+
         res.locals.token = info;
         res.render('qrcode');
       });
     }
     else {
+      info = {
+        N_MAC: '0013a20040ac1aed',
+        key: 'hehe'
+      }
       res.locals.token = info;
       res.render('qrcode');
     }

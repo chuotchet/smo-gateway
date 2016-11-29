@@ -12,7 +12,7 @@ module.exports = function(sequelize, DataTypes) {
     },
     mode: {
       type: DataTypes.STRING,
-      defaultValue: 'manual',
+      defaultValue: 'auto',
       allowNull: true
     },
     status: {
@@ -22,6 +22,7 @@ module.exports = function(sequelize, DataTypes) {
     },
     button: {
       type: DataTypes.STRING,
+      defaultValue: 'Nil',
       allowNull: true
     },
     port: {
@@ -40,7 +41,7 @@ module.exports = function(sequelize, DataTypes) {
     },
     time: {
       type: DataTypes.STRING,
-      defaultValue: '00-00/12-00',
+      defaultValue: '08-00/17-00',
       allowNull: true
     },
     range: {
