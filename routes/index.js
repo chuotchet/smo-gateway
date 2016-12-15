@@ -101,7 +101,7 @@ router.get('/qrcode', ensureAuthenticated, function(req,res){
     }
     else {
       info = {
-        N_MAC: '0013a20040ac1aed',
+        N_MAC: '0013a20040ac1b24',
         key: 'hehe'
       }
       res.locals.token = info;

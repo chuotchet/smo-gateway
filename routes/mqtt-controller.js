@@ -27,6 +27,10 @@ var timeCheck = function(now,time,callback){
   time = time.split('/');
   var min = time[0].split('-');
   var max = time[1].split('-');
+  min[0] = parseInt(min[0]);
+  min[1] = parseInt(min[1]);
+  max[0] = parseInt(max[0]);
+  max[1] = parseInt(max[1]);
   if( ((h>min[0])||(h==min[0]&&m>=min[1])) &&  ((h<max[0])||(h==max[0]&&m==max[1])) ){
     callback(true);
   }
@@ -43,6 +47,8 @@ var sendXbee = function(dataXbee,MAC){
     options: 0x00, // optional, 0x00 is default
     data: dataXbee // Can either be string or byte array.
   }
+  // console.log('frame_send:');
+  // console.log(frame_obj);
   serialport.write(xbeeAPI.buildFrame(frame_obj));
 }
 
@@ -51,17 +57,17 @@ serialport.on("open", function() {
 });
 
 xbeeAPI.on("frame_object", function(frame) {
-  console.log('receive xbee frame');
-  console.log(frame);
     if(frame.type == C.FRAME_TYPE.ZIGBEE_RECEIVE_PACKET){ //receive
       var message = frame.data;
+      // console.log('frame_receive');
+      // console.log(frame);
       var MAC = frame.remote64;
       if (message[0]==0x05){ //sensor
         updateNodeInfo(message, MAC);
       }
       if (message[0]==0x01){ //add
         //??TODO
-        console.log('Add node successfully!');
+        console.log('Add/Delete node successfully!');
       }
       if (message[0]==0x02){ //control
         updateDeviceInfo(message, MAC);
@@ -86,47 +92,64 @@ client.on('connect', function(){
 
 client.on('message', function(topic, message){
   message = JSON.parse(message);
-  console.log(message);
+  // console.log('message from mobile');
+  // console.log(message);
   var node = topic.split('/')[1];
   if (message.request=='getData'){
     returnData(topic);
   }
-  if (message.request=='addDevice'){
+  else if (message.request=='addDevice'){
     addDevice(topic, message);
   }
-  if (message.request=='editDevice'){
+  else if (message.request=='editDevice'){
     editDevice(topic, message);
   }
-  if (message.request=='deleteDevice'){
+  else if (message.request=='deleteDevice'){
     deleteDevice(topic, message);
   }
-  if (message.request=='controlDevice'){
+  else if (message.request=='controlDevice'){
     controlDevice(topic, message);
   }
-  if (message.request=='changeMode'){
+  else if (message.request=='changeMode'){
     changeMode(topic, message);
   }
-  if (message.request=='turnOffAll'){
+  else if (message.request=='turnOffAll'){
     turnOffAll(topic);
   }
-  if (message.request=='controlPort'){
+  else if (message.request=='controlPort'){
     controlPort(topic, message);
   }
-  if (message.request=='controlAir'){
+  else if (message.request=='controlAir'){
     controlAir(topic, message);
   }
-  if (message.request=='controlAuto'){
+  else if (message.request=='controlAuto'){
     controlAuto(topic, message);
+  }
+  else if (message.request=='deleteNode'){
+    deleteNode(topic);
   }
 });
 
+var deleteNode = function(topic){
+  turnOffAll(topic);
+  var dataXbee = [0x01, 0x00];
+  sendXbee(dataXbee, MAC);
+  var MAC = topic.split('/')[1];
+  models.Node.getNodeByMAC(MAC, function(node){
+    node.destroy();
+    var message = {
+      response: 'Node deleted'
+    }
+    client.publish(topic+'/s',JSON.stringify(message));
+  });
+}
+
 var addNode = function(MAC){
-  var dataXbee = [0x01];
+  var dataXbee = [0x01, 0x01];
   sendXbee(dataXbee, MAC);
 }
 
 var updateNodeInfo = function(message, MAC){
-  console.log('updateNodeInfo');
   models.Node.getNodeByMAC(MAC, function(node){
     node.tem = message[1].toString();
     node.hum = message[2].toString();
@@ -139,38 +162,51 @@ var updateNodeInfo = function(message, MAC){
         mode: 'auto'
       }
     }).then(function(devs){
+      var lux = parseInt(node.lux);
+      var tem = parseInt(node.tem);
       var now = new Date();
-      var dataXbee = [0x02];
       for(i=0;i<devs.length;i++){
+        var dataXbee = [0x02];
         timeCheck(now,devs[i].time, function(isTrue){
           if(isTrue){
-            var range = devs[i].range.split('/')
+            var range = devs[i].range.split('/');
+            range[0] = parseInt(range[0]);
+            range[1] = parseInt(range[1]);
             if(devs[i].type=='fan'){ //quat
-              if(node.tem<range[0]){ //check dieu kien
+              if(tem<range[0]){ //check dieu kien
                 dataXbee.push(parseInt(devs[i].port));
                 dataXbee.push(0x00); //or 0xff
                 sendXbee(dataXbee,MAC);
               }
-              else if(node.tem>range[1]){ //check dieu kien
+              else if(tem>range[1]){ //check dieu kien
                 dataXbee.push(parseInt(devs[i].port));
                 dataXbee.push(0xff); //or 0xff
                 sendXbee(dataXbee,MAC);
               }
             }
-            if(devs[i].type=='light'){ //den
-              if(node.lux<range[0]){ //check dieu kien
+            else if(devs[i].type=='light'){ //den
+              if(lux<range[0]){ //check dieu kien
                 dataXbee.push(parseInt(devs[i].port));
                 dataXbee.push(0xff); //or 0xff
                 sendXbee(dataXbee,MAC);
               }
-              else if(node.lux>range[1]){ //check dieu kien
+              else if(lux>range[1]){ //check dieu kien
                 dataXbee.push(parseInt(devs[i].port));
                 dataXbee.push(0x00); //or 0xff
                 sendXbee(dataXbee,MAC);
               }
             }
-            if(devs[i].type=='condition'){ //maylanh
-
+            else if(devs[i].type=='condition'){ //maylanh
+              if(tem>range[0]){
+                // var dataXbee2 = [0x07];
+                // dataXbee2.push(0x01); //DAIKIN
+                // dataXbee2.push(0xff); //ON
+                // dataXbee2.push(0xff); //swing
+                // dataXbee2.push(0x00); //fan
+                // dataXbee2.push(0x05); //speed
+                // dataXbee2.push(range[1]); //temperature
+                // sendXbee(dataXbee2,MAC);
+              }
             }
           }
         });
@@ -191,7 +227,7 @@ var updateDeviceInfo = function(message, MAC){
         console.log(message[2].toString());
         dev.button = message[2].toString();
       }
-      if(message[0]==0x02){
+      if(message[0]==0x02||message[0]==0x06){
         dev.status = (message[2]==0x00)?'off':'on';
       }
       dev.save().then(function(){
@@ -237,6 +273,7 @@ var returnData = function(topic){
 }
 
 var addDevice = function(topic, message){
+  console.log('addDevice');
   var MAC = topic.split('/')[1];
   if(message.data.button){
     var dataXbee = [0x03];
@@ -315,18 +352,33 @@ var controlDevice = function(topic, message){
   sendXbee(dataXbee,MAC);
 
   //TODO: database
-  // models.Node.getNodeByMAC(MAC, function(node){
-  //   node.getDevices({
-  //     where:{
-  //       port: message.data.port
-  //     }
-  //   }).then(function(dev){
-  //     dev[0].status = message.data.status;
-  //     dev[0].save().then(function(){
-  //       returnData(topic);
-  //     });
-  //   });
-  // });
+  models.Node.getNodeByMAC(MAC, function(node){
+    node.getDevices({
+      where:{
+        port: message.data.port
+      }
+    }).then(function(dev){
+      if(dev[0].type == 'condition'){
+        console.log('dieu khien may lanh');
+        console.log(message.data.status);
+        var dataXbee2 = [0x07];
+        dataXbee2.push(0x01); //DAIKIN
+        dataXbee2.push((message.data.status=='off')?0x00:0xff); //ON
+        dataXbee2.push(0xff); //swing
+        dataXbee2.push(0x00); //fan
+        dataXbee2.push(0x05); //speed
+        dataXbee2.push(0x18); //temperature
+        console.log(dataXbee2);
+        sendXbee(dataXbee2,MAC);
+      }
+      // else{
+      //   var dataXbee = [0x02];
+      //   dataXbee.push(parseInt(message.data.port));
+      //   dataXbee.push((message.data.status=='off')?0x00:0xff);
+      //   sendXbee(dataXbee,MAC);
+      // }
+    });
+  });
 }
 
 var changeMode = function(topic, message){
@@ -386,20 +438,29 @@ var controlPort = function(topic, message){
 var controlAir = function(topic, message){
   var MAC = topic.split('/')[1];
   //TODO: xbee
+  var dataXbee = [0x07];
+  //dataXbee.push(parseInt(message.data.port));
+  dataXbee.push(0x01); //DAIKIN
+  dataXbee.push(0xff); //ON
+  dataXbee.push(0xff); //swing
+  dataXbee.push(0x00); //fan
+  dataXbee.push(0x05); //speed
+  dataXbee.push(parseInt(message.data.temp)); //temperature
+  sendXbee(dataXbee,MAC);
 
   //TODO: database
-  models.Node.getNodeByMAC(MAC, function(node){
-    node.getDevices({
-      where:{
-        port: message.data.port
-      }
-    }).then(function(dev){
-      dev[0].temp = message.data.temp;
-      dev[0].save().then(function(){
-        returnData(topic);
-      });
-    });
-  });
+  // models.Node.getNodeByMAC(MAC, function(node){
+  //   node.getDevices({
+  //     where:{
+  //       port: message.data.port
+  //     }
+  //   }).then(function(dev){
+  //     dev[0].temp = message.data.temp;
+  //     dev[0].save().then(function(){
+  //       returnData(topic);
+  //     });
+  //   });
+  // });
 }
 
 var controlAuto = function(topic, message){
