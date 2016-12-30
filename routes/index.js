@@ -100,10 +100,6 @@ router.get('/qrcode', ensureAuthenticated, function(req,res){
       });
     }
     else {
-      info = {
-        N_MAC: '0013a20040ac1b24',
-        key: 'hehe'
-      }
       res.locals.token = info;
       res.render('qrcode');
     }
@@ -114,7 +110,7 @@ router.get('/changeqr', ensureAuthenticated, function(req,res){
   jsonfile.readFile(tokenfile, function(err, info){
     info.key = generator.generate({number: true});
     jsonfile.writeFile(tokenfile, info, function(err){
-      requestify.post('https://cc-smo.herokuapp.com/gateway', info).then(function(response){
+      requestify.post('http://45.32.52.248/gateway', info).then(function(response){
         console.log(response.getBody());
       });
       // info = {

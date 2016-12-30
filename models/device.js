@@ -22,7 +22,7 @@ module.exports = function(sequelize, DataTypes) {
     },
     button: {
       type: DataTypes.STRING,
-      defaultValue: 'Nil',
+      defaultValue: '',
       allowNull: true
     },
     port: {
@@ -36,7 +36,7 @@ module.exports = function(sequelize, DataTypes) {
     },
     temp: {
       type: DataTypes.STRING,
-      defaultValue: '25',
+      defaultValue: '20',
       allowNull: true
     },
     time: {

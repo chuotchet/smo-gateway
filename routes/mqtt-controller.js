@@ -16,7 +16,7 @@ var xbeeAPI = new xbee_api.XBeeAPI({
   api_mode: 1
 });
 
-var serialport = new SerialPort("COM3", {
+var serialport = new SerialPort("/dev/ttyUSB0", {
   baudrate: 9600,
   parser: xbeeAPI.rawParser()
 });
@@ -47,8 +47,7 @@ var sendXbee = function(dataXbee,MAC){
     options: 0x00, // optional, 0x00 is default
     data: dataXbee // Can either be string or byte array.
   }
-  // console.log('frame_send:');
-  // console.log(frame_obj);
+  console.log(frame_obj);
   serialport.write(xbeeAPI.buildFrame(frame_obj));
 }
 
@@ -132,16 +131,18 @@ client.on('message', function(topic, message){
 
 var deleteNode = function(topic){
   turnOffAll(topic);
-  var dataXbee = [0x01, 0x00];
-  sendXbee(dataXbee, MAC);
-  var MAC = topic.split('/')[1];
-  models.Node.getNodeByMAC(MAC, function(node){
-    node.destroy();
-    var message = {
-      response: 'Node deleted'
-    }
-    client.publish(topic+'/s',JSON.stringify(message));
-  });
+  setTimeout(function(){
+    var dataXbee = [0x01, 0x00];
+    sendXbee(dataXbee, MAC);
+    var MAC = topic.split('/')[1];
+    models.Node.getNodeByMAC(MAC, function(node){
+      node.destroy();
+      var message = {
+        response: 'Node deleted'
+      }
+      client.publish(topic+'/s',JSON.stringify(message));
+    });
+  },4000);
 }
 
 var addNode = function(MAC){
@@ -154,6 +155,13 @@ var updateNodeInfo = function(message, MAC){
     node.tem = message[1].toString();
     node.hum = message[2].toString();
     node.lux = (message[3]*16*16+message[4]).toString();
+    if(message[5]==0x01){
+      node.human = new Date();
+    }
+    // else {
+    //   console.log('ko co nguoi');
+    //   console.log(new Date() - node.human);
+    // }
     node.save().then(function(){
       returnData(g_mac+'/'+MAC);
     });
@@ -167,7 +175,21 @@ var updateNodeInfo = function(message, MAC){
       var now = new Date();
       for(i=0;i<devs.length;i++){
         var dataXbee = [0x02];
-        timeCheck(now,devs[i].time, function(isTrue){
+        if(message[5]==0x00&&(node.human==null || (new Date()-node.human)>60000)){
+          if(devs[i].status=='on'){
+            dataXbee.push(parseInt(devs[i].port));
+            dataXbee.push(0x00); //or 0xff
+            sendXbee(dataXbee,MAC);
+            if(devs[i].type=='condition'){
+              var dataXbee2 = [0x07];
+              dataXbee2.push(0x01); //DAIKIN
+              dataXbee2.push(0x00);
+              sendXbee(dataXbee2,MAC);
+            }
+          }
+        }
+        else timeCheck(now,devs[i].time, function(isTrue){
+          console.log('check auto');
           if(isTrue){
             var range = devs[i].range.split('/');
             range[0] = parseInt(range[0]);
@@ -176,36 +198,41 @@ var updateNodeInfo = function(message, MAC){
               if(tem<range[0]){ //check dieu kien
                 dataXbee.push(parseInt(devs[i].port));
                 dataXbee.push(0x00); //or 0xff
-                sendXbee(dataXbee,MAC);
+                if(devs[i].status=='on') sendXbee(dataXbee,MAC);
               }
               else if(tem>range[1]){ //check dieu kien
                 dataXbee.push(parseInt(devs[i].port));
                 dataXbee.push(0xff); //or 0xff
-                sendXbee(dataXbee,MAC);
+                if(devs[i].status=='off') sendXbee(dataXbee,MAC);
               }
             }
             else if(devs[i].type=='light'){ //den
               if(lux<range[0]){ //check dieu kien
                 dataXbee.push(parseInt(devs[i].port));
                 dataXbee.push(0xff); //or 0xff
-                sendXbee(dataXbee,MAC);
+                if(devs[i].status=='off') sendXbee(dataXbee,MAC);
               }
               else if(lux>range[1]){ //check dieu kien
                 dataXbee.push(parseInt(devs[i].port));
                 dataXbee.push(0x00); //or 0xff
-                sendXbee(dataXbee,MAC);
+                if(devs[i].status=='on') sendXbee(dataXbee,MAC);
               }
             }
             else if(devs[i].type=='condition'){ //maylanh
-              if(tem>range[0]){
-                // var dataXbee2 = [0x07];
-                // dataXbee2.push(0x01); //DAIKIN
-                // dataXbee2.push(0xff); //ON
-                // dataXbee2.push(0xff); //swing
-                // dataXbee2.push(0x00); //fan
-                // dataXbee2.push(0x05); //speed
-                // dataXbee2.push(range[1]); //temperature
-                // sendXbee(dataXbee2,MAC);
+              if(tem>range[0]&&devs[i].status=='off'){
+              console.log('thoa dieu kien auto');
+                 var dataXbee2 = [0x07];
+                 dataXbee2.push(0x01); //DAIKIN
+                 dataXbee2.push(0xff); //ON
+                 dataXbee2.push(0xff); //swing
+                 dataXbee2.push(0x00); //fan
+                 dataXbee2.push(0x05); //speed
+                 dataXbee2.push(range[1]); //temperature
+                 sendXbee(dataXbee2,MAC);
+                 devs[i].temp = range[1].toString();
+                 devs[i].status = 'on';
+                 devs[i].save();
+
               }
             }
           }
@@ -222,17 +249,19 @@ var updateDeviceInfo = function(message, MAC){
         port: message[1].toString()
       }
     }).then(function(dev){
-      dev = dev[0];
-      if(message[0]==0x03){
-        console.log(message[2].toString());
-        dev.button = message[2].toString();
+      if(dev[0]){ //dev[0]!=null
+        dev = dev[0];
+        if(message[0]==0x03){
+          console.log(message[2].toString());
+          dev.button = message[2].toString();
+        }
+        if(message[0]==0x02||message[0]==0x06){
+          dev.status = (message[2]==0x00)?'off':'on';
+        }
+        dev.save().then(function(){
+          returnData(g_mac+'/'+MAC);
+        });
       }
-      if(message[0]==0x02||message[0]==0x06){
-        dev.status = (message[2]==0x00)?'off':'on';
-      }
-      dev.save().then(function(){
-        returnData(g_mac+'/'+MAC);
-      });
     });
   });
 }
@@ -346,6 +375,7 @@ var deleteDevice = function(topic, message){
 var controlDevice = function(topic, message){
   var MAC = topic.split('/')[1];
   //TODO: xbee
+
   var dataXbee = [0x02];
   dataXbee.push(parseInt(message.data.port));
   dataXbee.push((message.data.status=='off')?0x00:0xff);
@@ -363,12 +393,19 @@ var controlDevice = function(topic, message){
         console.log(message.data.status);
         var dataXbee2 = [0x07];
         dataXbee2.push(0x01); //DAIKIN
-        dataXbee2.push((message.data.status=='off')?0x00:0xff); //ON
-        dataXbee2.push(0xff); //swing
+        if(message.data.status=='off'){
+          dataXbee2.push(0x00);
+        }
+        else {
+          dataXbee2.push(0xff);
+          dataXbee2.push(0xff); //swing
         dataXbee2.push(0x00); //fan
         dataXbee2.push(0x05); //speed
         dataXbee2.push(0x18); //temperature
-        console.log(dataXbee2);
+
+        }
+
+        //console.log(dataXbee2);
         sendXbee(dataXbee2,MAC);
       }
       // else{
@@ -449,18 +486,19 @@ var controlAir = function(topic, message){
   sendXbee(dataXbee,MAC);
 
   //TODO: database
-  // models.Node.getNodeByMAC(MAC, function(node){
-  //   node.getDevices({
-  //     where:{
-  //       port: message.data.port
-  //     }
-  //   }).then(function(dev){
-  //     dev[0].temp = message.data.temp;
-  //     dev[0].save().then(function(){
-  //       returnData(topic);
-  //     });
-  //   });
-  // });
+   models.Node.getNodeByMAC(MAC, function(node){
+     node.getDevices({
+       where:{
+         port: message.data.port
+       }
+     }).then(function(dev){
+       dev[0].temp = message.data.temp;
+       dev[0].status = 'on';
+       dev[0].save().then(function(){
+         returnData(topic);
+       });
+     });
+   });
 }
 
 var controlAuto = function(topic, message){
