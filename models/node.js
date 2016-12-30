@@ -40,6 +40,22 @@ module.exports = function(sequelize, DataTypes) {
         };
         Node.findOne(query).then(callback);
       },
+      createNode: function(MAC,models){
+        Node.findOrCreate({where: {N_MAC:MAC}}).spread(function(node,created){
+          if(created){
+            for(var i=1;i<9;i++){
+              var data = {
+                port: i.toString()
+              }
+              models.Device.create(data).then(function(dev){
+                node.addDevice(dev).then(function(){
+                  console.log('Add port: %s', dev.port);
+                });
+              });
+            }
+          }
+        });
+      },
       associate: function(models){
         Node.belongsToMany(models.Device, {through: 'NodeDevices'});
       }
