@@ -4,7 +4,42 @@ var strToByte = require('./strToByte.js');
 var broker = require('../config/brokerurl.json');
 var g_mac = require('../config/token.json').G_MAC;
 console.log(g_mac);
-//var g_mac = 'ccsmo';
+
+///for encrypt/decrypt MQTT messages
+var crypto = require('crypto');
+var key = require('../config/token.json').key;
+function nullpad( str, len ) {
+    if( str.length >= len ) {
+        return str;
+    }
+    return str + Array( len-str.length + 1 ).join("\x00");
+}
+var password = nullpad(key,32);
+var iv = new Buffer(16);
+iv.fill(0);
+function decrypt(text){
+  try {
+    var decipher = crypto.createDecipheriv('aes-256-cbc', password, iv);
+    var dec = decipher.update(text,'base64','utf-8');
+    dec += decipher.final('utf8');
+    return dec;
+  } catch (e) {
+    console.log(e);
+    return '{"error":"wrong message"}';
+  }
+  // var decipher = crypto.createDecipheriv('aes-256-cbc', password, iv);
+  // var dec = decipher.update(text,'base64','utf-8');
+  // dec += decipher.final('utf8');
+  // return dec;
+}
+function encrypt(text){
+  var cipher = crypto.createCipheriv('aes-256-cbc', password, iv);
+  var crypted = cipher.update(text,'utf8','base64')
+  crypted += cipher.final('base64');
+  return crypted;
+}
+///////////////////////////////////////////////////////////////////////
+
 var client  = mqtt.connect(broker.URL);
 
 var SerialPort = require('serialport');
@@ -90,9 +125,10 @@ client.on('connect', function(){
 
 
 client.on('message', function(topic, message){
+  message = decrypt(message.toString());
   message = JSON.parse(message);
   // console.log('message from mobile');
-  // console.log(message);
+  console.log(message);
   var node = topic.split('/')[1];
   if (message.request=='getData'){
     returnData(topic);
@@ -279,11 +315,8 @@ var updatePortStatus = function(message, MAC){
 
 var returnData = function(topic){
   var MAC = topic.split('/')[1];
-  models.Node.findOrCreate({where: {N_MAC:MAC}}).spread(function(node,created){
-    if (created){
-      console.log('Add new node to db!');
-      addNode(MAC);
-    }
+  models.Node.createNode(MAC,models,function(isNew,node){
+    if(isNew==true) addNode(MAC);
     node.getDevices().then(function(devs){
       var dataSend = {
         success:true,
@@ -296,9 +329,31 @@ var returnData = function(topic){
           devices: devs
         }
       }
-      client.publish(topic+'/g',JSON.stringify(dataSend));
+      dataSend = encrypt(JSON.stringify(dataSend));
+      client.publish(topic+'/g',dataSend);
     });
   });
+  // models.Node.findOrCreate({where: {N_MAC:MAC}}).spread(function(node,created){
+  //   if (created){
+  //     console.log('Add new node to db!');
+  //     addNode(MAC);
+  //   }
+  //   node.getDevices().then(function(devs){
+  //     var dataSend = {
+  //       success:true,
+  //       lux: node.lux,
+  //       tem: node.tem,
+  //       hum: node.hum,
+  //       source: 'gateway',
+  //       turnOffAll: node.turnOffAll,
+  //       data: {
+  //         devices: devs
+  //       }
+  //     }
+  //     dataSend = encrypt(JSON.stringify(dataSend));
+  //     client.publish(topic+'/g',dataSend);
+  //   });
+  // });
 }
 
 var addDevice = function(topic, message){
@@ -456,6 +511,7 @@ var turnOffAll = function(topic){
 var controlPort = function(topic, message){
   var MAC = topic.split('/')[1];
   //TODO: xbee
+  if(message.data.status_port=='on'){}
 
   //TODO: database
   models.Node.getNodeByMAC(MAC, function(node){
@@ -468,6 +524,18 @@ var controlPort = function(topic, message){
       dev[0].save().then(function(){
         returnData(topic);
       });
+      if(message.data.status_port=='on'){
+        var dataXbee = [0x03];
+        dataXbee.push(parseInt(dev[0].port));
+        dataXbee.push(parseInt(dev[0].button));
+        sendXbee(dataXbee,MAC);
+      }
+      else {
+        var dataXbee = [0x03];
+        dataXbee.push(parseInt(dev[0].port));
+        dataXbee.push(0x00);
+        sendXbee(dataXbee,MAC);
+      }
     });
   });
 }
